@@ -81,7 +81,7 @@ if __name__ == "__main__":
     fabric = UsysFabricTimingWrapper()
 
     # 1. Profile on the large high-performance ECP5-5G chip
-    build_ecp5(fabric)
+    #build_ecp5(fabric)
     
     # 2. Profile on the tiny cheap ultra-low-resource iCE40 chip
-    #build_ice40(fabric)
+    build_ice40(fabric)
