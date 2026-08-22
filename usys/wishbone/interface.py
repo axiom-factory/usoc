@@ -69,14 +69,16 @@ class WishboneMasterFormalChecker(Component):
             past_sel.eq(self.sel)
         ]
 
-        m.d.comb += Cover(self.cyc & self.stb & self.ack)
+        if platform == 'formal':
+            m.d.comb += Cover(self.cyc & self.stb & self.ack)
 
         # Make sure slave outputs are driven
-        m.d.comb += [
-            self.ack.eq(AnySeq(1)),
-            self.stall.eq(AnySeq(1)),
-            self.dat_r.eq(AnySeq(32)),
-        ]
+        if platform == 'formal':
+            m.d.comb += [
+                self.ack.eq(AnySeq(1)),
+                self.stall.eq(AnySeq(1)),
+                self.dat_r.eq(AnySeq(32)),
+            ]
 
         # Rule 1: Assert Power-On Reset Invariant
         with m.If(initial):
@@ -158,17 +160,19 @@ class WishboneSlaveFormalChecker(Component):
             past_sel.eq(self.sel),
         ]
 
-        m.d.comb += Cover(self.cyc & self.ack)
+        if platform == 'formal':
+            m.d.comb += Cover(self.cyc & self.ack)
 
         # Make sure master outputs are driven
-        m.d.comb += [
-            self.cyc.eq(AnySeq(1)),
-            self.stb.eq(AnySeq(1)),
-            self.we.eq(AnySeq(1)),
-            self.addr.eq(AnySeq(32)),
-            self.sel.eq(AnySeq(4)),
-            self.dat_w.eq(AnySeq(32)),
-        ]
+        if platform == 'formal':
+            m.d.comb += [
+                self.cyc.eq(AnySeq(1)),
+                self.stb.eq(AnySeq(1)),
+                self.we.eq(AnySeq(1)),
+                self.addr.eq(AnySeq(32)),
+                self.sel.eq(AnySeq(4)),
+                self.dat_w.eq(AnySeq(32)),
+            ]
 
         # Rule 1: Assert Power-On Reset Invariant
         with m.If(initial):
@@ -262,12 +266,9 @@ class TestWishboneChecker(unittest.TestCase):
             yield Tick()
 
             # STB without pulling CYC high
-            yield dut.cyc.eq(1)
+            yield dut.cyc.eq(0)
             yield dut.stb.eq(1)
             yield Tick()
-
-            # Wait 3 cycles to violate the high-performance timeout bound
-            yield Tick(); yield Tick(); yield Tick()
 
         sim.add_clock(Period(MHz=1))
         sim.add_process(proc)

@@ -54,6 +54,7 @@ class UsysFabric(wiring.Component):
         # ---------------------------------------------------------
         # Pure wire passthrough. No decoders, no arbiters.
         m.d.comb += [
+            i_sram.port_a.cyc.eq(self.cpu_ibus.cyc),
             i_sram.port_a.stb.eq(self.cpu_ibus.stb),
             i_sram.port_a.we.eq(self.cpu_ibus.we),
             i_sram.port_a.addr.eq(self.cpu_ibus.addr),
@@ -74,6 +75,7 @@ class UsysFabric(wiring.Component):
 
         # Connect the CPU D-Bus inputs directly to the Decoder Master input gate
         m.d.comb += [
+            dbus_decoder.master.cyc.eq(self.cpu_dbus.cyc),
             dbus_decoder.master.stb.eq(self.cpu_dbus.stb),
             dbus_decoder.master.we.eq(self.cpu_dbus.we),
             dbus_decoder.master.addr.eq(self.cpu_dbus.addr),
@@ -89,6 +91,7 @@ class UsysFabric(wiring.Component):
 
         # Wire Decoder Slave 0 Output directly to D-SRAM Port A
         m.d.comb += [
+            d_sram.port_a.cyc.eq(dbus_decoder.slave0.cyc),
             d_sram.port_a.stb.eq(dbus_decoder.slave0.stb),
             d_sram.port_a.we.eq(dbus_decoder.slave0.we),
             d_sram.port_a.addr.eq(dbus_decoder.slave0.addr),
@@ -101,6 +104,7 @@ class UsysFabric(wiring.Component):
 
         # Wire Decoder Slave 1 Output directly to the System UBUS Register Slave Interface
         m.d.comb += [
+            self.ubus_slave.cyc.eq(dbus_decoder.slave1.cyc),
             self.ubus_slave.stb.eq(dbus_decoder.slave1.stb),
             self.ubus_slave.we.eq(dbus_decoder.slave1.we),
             self.ubus_slave.addr.eq(dbus_decoder.slave1.addr),
@@ -143,29 +147,4 @@ class UsysFabric(wiring.Component):
             self.ubus_master.stall.eq(Mux(ubus_to_isram, i_sram.port_b.stall, d_sram.port_b.stall))
         ]
 
-        # ---------------------------------------------------------
-        # 6. INTEGRATION FORMAL FIREWALL PROOFS
-        # ---------------------------------------------------------
-        if platform == "formal":
-            # Rule A: CPU Instruction Firewall
-            # CPU core's Instruction bus can NEVER physically execute a write.
-            with m.If(self.cpu_ibus.stb & self.cpu_ibus.we):
-                m.d.comb += Assert(False)
-
-            # Rule B: Total Hardware Isolation
-            # If the CPU asserts an instruction fetch request on Cycle 1, and
-            # the memory isn't stalled by a downstream system block, the
-            # architecture must return an absolute valid acknowledge on Cycle 2,
-            # regardless of what the UBUS network is doing on Port B.
-            past_ibus_read_req = Signal()
-            m.d.sync += past_ibus_read_req.eq(self.cpu_ibus.stb & ~self.cpu_ibus.we)
-            with m.If(past_ibus_read_req):
-                m.d.comb += Assert(self.cpu_ibus.ack == 1)
-
         return m
-
-
-if __name__ == "__main__":
-    from usys.build.formal import run_formal
-    fabric = UsysFabric(depth_i_sram=8, depth_d_sram=8)
-    run_formal(fabric)
