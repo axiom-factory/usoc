@@ -28,8 +28,14 @@ def build_rtlil(top, platform='formal', target_dir=Path('target')):
 def build_formal(top, target_dir=Path('target')):
     name = top.__class__.__name__
     build_dir = build_rtlil(top, platform='formal', target_dir=target_dir)
-    sby_script = f'''[options]
-mode bmc
+    sby_script = f'''
+[tasks]
+bmc
+cover
+
+[options]
+bmc: mode bmc
+cover: mode cover
 depth 20
 
 [engines]
@@ -49,21 +55,23 @@ prep -top top
     return sby_path
 
 
+def _run_sby_task(sby_path, task):
+    name = sby_path.name
+    print(f'[*] Running {task}...')
+    result = subprocess.run(['sby', '-f', '-d', task, '-T', task, f'{name}'], cwd=str(sby_path.parent))
+    print("-" * 60)
+    if result.returncode == 0:
+        print(f'[SUCCESS] {task}')
+    else:
+        print(f'[FAIL] {task}')
+        print(f"[*] Inspect the '{sby_path}' directory for failure traces.")
+    print("-" * 60)
+
+
 def run_formal(top, target_dir=Path('target')):
     '''
     Invokes sby directly from the shell environment.
     '''
-    name = top.__class__.__name__
     sby_path = build_formal(top, target_dir=target_dir)
-    print('[*] Launching SymbiYosys Engine to execute formal proofs...')
-    
-    # We execute with the '-f' flag to automatically overwrite past run metadata
-    result = subprocess.run(['sby', '-f', '-d', 'sby', f'{name}.sby'], cwd=str(sby_path.parent))
-    
-    print("-" * 60)
-    if result.returncode == 0:
-        print('[SUCCESS] {} mathematically proven safe.')
-    else:
-        print('[FAIL] Formal contract violation detected!')
-        print(f"[*] Inspect the '{sby_path}' directory for failure traces.")
-    print("-" * 60)
+    _run_sby_task(sby_path, 'bmc')
+    _run_sby_task(sby_path, 'cover')

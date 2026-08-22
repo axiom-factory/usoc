@@ -7,12 +7,12 @@ from usys.wishbone.interface import wishbone_signature, WishboneSlaveFormalCheck
 
 class WishboneDualPortSram(Component):
     def __init__(self, depth: int = 4096):
-        """
+        '''
         True Dual-Port Pipelined SRAM Block
         
         Parameters:
             depth: Storage depth in 32-bit Words (e.g., 4096 Words = 16KB SRAM)
-        """
+        '''
         self.depth = depth
         wb_sig = wishbone_signature()
         super().__init__(Signature({
