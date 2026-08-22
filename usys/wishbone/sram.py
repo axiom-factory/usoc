@@ -2,7 +2,7 @@ from amaranth import Module, Mux, Signal
 from amaranth.asserts import Assert, Assume, Cover
 from amaranth.lib import memory, wiring
 from amaranth.lib.wiring import Component, In, Out, Signature
-from amaranth.sim import Simulator
+from amaranth.sim import Period, Simulator, Tick
 from usys.wishbone.interface import wishbone_signature, WishboneSlaveFormalChecker
 import unittest
 
@@ -31,7 +31,7 @@ class WishboneDualPortSram(Component):
 
         # Port A:
         mem_r_a = mem.read_port(domain='sync')
-        mem_w_a = mem.write_port(domain='sync')
+        mem_w_a = mem.write_port(domain='sync', granularity=8)
         ack_a = Signal()
         x_ack_a = Signal()
         m.d.comb += [
@@ -43,7 +43,7 @@ class WishboneDualPortSram(Component):
             mem_w_a.addr.eq(port_a.addr),
             mem_r_a.addr.eq(port_a.addr),
             mem_w_a.data.eq(port_a.dat_w),
-            mem_w_a.en.eq(port_a.cyc & port_a.stb & port_a.we),
+            mem_w_a.en.eq(Mux(port_a.cyc & port_a.stb & port_a.we, port_a.sel, 0)),
             mem_r_a.en.eq(port_a.cyc & port_a.stb & ~port_a.we),
             ack_a.eq(port_a.cyc & x_ack_a),
             x_ack_a.eq(port_a.cyc & port_a.stb),
@@ -51,7 +51,7 @@ class WishboneDualPortSram(Component):
 
         # Port B:
         mem_r_b = mem.read_port(domain='sync')
-        mem_w_b = mem.write_port(domain='sync')
+        mem_w_b = mem.write_port(domain='sync', granularity=8)
         ack_b = Signal()
         x_ack_b = Signal()
         m.d.comb += [
@@ -63,7 +63,7 @@ class WishboneDualPortSram(Component):
             mem_w_b.addr.eq(port_b.addr),
             mem_r_b.addr.eq(port_b.addr),
             mem_w_b.data.eq(port_b.dat_w),
-            mem_w_b.en.eq(port_b.cyc & port_b.stb & port_b.we),
+            mem_w_b.en.eq(Mux(port_b.cyc & port_b.stb & port_b.we, port_b.sel, 0)),
             mem_r_b.en.eq(port_b.cyc & port_b.stb & ~port_b.we),
             ack_b.eq(port_b.cyc & x_ack_b),
             x_ack_b.eq(port_b.cyc & port_b.stb),
@@ -91,34 +91,46 @@ class WishboneDualPortSram(Component):
 
 class TestSramPipeline(unittest.TestCase):
     def test_write_after_read_integrity(self):
-        dut = WishboneDualPortSram()
+        dut = WishboneDualPortSram(depth=8)
         sim = Simulator(dut)
+        port_a = dut.port_a
 
         def proc():
+            dut = port_a
+            yield Tick()
             yield dut.cyc.eq(1)
             yield dut.stb.eq(1)
             yield dut.we.eq(1)
             yield dut.addr.eq(5)
             yield dut.dat_w.eq(0xABCDEFFF)
-            yield
+            yield dut.sel.eq(0b1111)
+            #yield dut.sel.eq(0b1010)
+            yield Tick()
             yield dut.stb.eq(0)
             yield dut.we.eq(0)
-            yield
+            yield Tick()
+            yield Tick()
             ack_val = yield dut.ack
+            print(f'ack = {ack_val}')
             self.assertEqual(ack_val, 1, "Error: No write ACK")
             yield dut.cyc.eq(0)
-            yield
+            yield Tick()
             yield dut.cyc.eq(1)
             yield dut.stb.eq(1)
             yield dut.we.eq(0)
             yield dut.addr.eq(5)
-            yield
+            yield Tick()
             yield dut.stb.eq(0)
-            yield
+            yield Tick()
+            yield Tick()
             ack_val = yield dut.ack
             read_data = yield dut.dat_r
             self.assertEqual(ack_val, 1, "Error: No read ACK")
             self.assertEqual(read_data, 0xABCDEFFF, f"Expected 0xABCDEFFF, got {hex(read_data)}")
+
+        sim.add_clock(Period(MHz=1))
+        sim.add_process(proc)
+        sim.run()
 
 
 if __name__ == '__main__':
