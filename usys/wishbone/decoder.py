@@ -2,9 +2,10 @@ from amaranth import Module, Signal
 from amaranth.hdl import Assert, Cover
 from amaranth.lib import wiring
 from amaranth.lib.wiring import Component, In, Out, Signature
+import math
 from usys.wishbone.interface import (
-    wishbone_signature, 
-    WishboneMasterFormal, 
+    wishbone_signature,
+    WishboneMasterFormal,
     WishboneSlaveFormal,
 )
 
@@ -66,6 +67,10 @@ class WishboneDecoder(Component):
         active_slave = Signal(2)
         req_issued = master.cyc & master.stb & ~master.stall
         res_rcvd   = master.cyc & master.ack
+
+        slave0_bits = int(math.log2(self.slave0_size))
+        slave1_bits = int(math.log2(self.slave1_size))
+
         slave0_match = (master.addr >= self.slave0_addr) & (master.addr < (self.slave0_addr + self.slave0_size))
         slave1_match = (master.addr >= self.slave1_addr) & (master.addr < (self.slave1_addr + self.slave1_size))
 
@@ -77,7 +82,7 @@ class WishboneDecoder(Component):
                     slave0.cyc.eq(master.cyc),
                     slave0.stb.eq(master.stb),
                     slave0.we.eq(master.we),
-                    slave0.addr.eq(master.addr - self.slave0_addr),
+                    slave0.addr.eq(master.addr[:slave0_bits]),
                     slave0.sel.eq(master.sel),
                     slave0.dat_w.eq(master.dat_w),
                     master.dat_r.eq(slave0.dat_r),
@@ -90,7 +95,7 @@ class WishboneDecoder(Component):
                     slave1.cyc.eq(master.cyc),
                     slave1.stb.eq(master.stb),
                     slave1.we.eq(master.we),
-                    slave1.addr.eq(master.addr - self.slave1_addr),
+                    slave1.addr.eq(master.addr[:slave1_bits]),
                     slave1.sel.eq(master.sel),
                     slave1.dat_w.eq(master.dat_w),
                     master.dat_r.eq(slave1.dat_r),
