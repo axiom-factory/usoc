@@ -87,4 +87,4 @@ if __name__ == "__main__":
     build_ecp5(fabric)
     
     # 2. Profile on the tiny cheap ultra-low-resource iCE40 chip
-    build_ice40(fabric)
+    #build_ice40(fabric)

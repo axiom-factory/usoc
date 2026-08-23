@@ -30,8 +30,9 @@ def wishbone_signature(addr_width=30, data_width=32):
     })
 
 
-class WishboneMasterFormalChecker(Component):
-    def __init__(self, wb: Signature):
+class WishboneMasterFormal(Component):
+    def __init__(self, wb: Signature, is_dut=False):
+        self.is_dut = is_dut
         super().__init__(wb)
 
     def elaborate(self, platform):
@@ -73,7 +74,7 @@ class WishboneMasterFormalChecker(Component):
             m.d.comb += Cover(self.cyc & self.stb & self.ack)
 
         # Make sure slave outputs are driven
-        if platform == 'formal':
+        if self.is_dut:
             m.d.comb += [
                 self.ack.eq(AnySeq(1)),
                 self.stall.eq(AnySeq(1)),
@@ -121,8 +122,9 @@ class WishboneMasterFormalChecker(Component):
         return m
 
 
-class WishboneSlaveFormalChecker(Component):
-    def __init__(self, wb: Signature):
+class WishboneSlaveFormal(Component):
+    def __init__(self, wb: Signature, is_dut=False):
+        self.is_dut = is_dut
         super().__init__(wb)
 
     def elaborate(self, platform):
@@ -164,7 +166,7 @@ class WishboneSlaveFormalChecker(Component):
             m.d.comb += Cover(self.cyc & self.ack)
 
         # Make sure master outputs are driven
-        if platform == 'formal':
+        if self.is_dut:
             m.d.comb += [
                 self.cyc.eq(AnySeq(1)),
                 self.stb.eq(AnySeq(1)),
@@ -219,7 +221,7 @@ class TestWishboneChecker(unittest.TestCase):
     def test_valid_one_wait_state_transaction(self):
         '''Verifies that a well-behaved 1-wait-state read passes with no issues.'''
 
-        dut = WishboneMasterFormalChecker(wishbone_signature())
+        dut = WishboneMasterFormal(wishbone_signature())
         sim = Simulator(dut)
 
         def proc():
@@ -257,7 +259,7 @@ class TestWishboneChecker(unittest.TestCase):
     def test_invalid_stb_leak_fails(self):
         '''Triggers the exact multi-cycle loop bug to prove the checker catches it.'''
 
-        dut = WishboneMasterFormalChecker(wishbone_signature())
+        dut = WishboneMasterFormal(wishbone_signature())
         sim = Simulator(dut)
 
         def proc():
@@ -284,8 +286,8 @@ class FormalChecker(Component):
 
     def elaborate(self, platform):
         m = Module()
-        master = m.submodules.master = WishboneSlaveFormalChecker(self.wb)
-        slave = m.submodules.slave = WishboneMasterFormalChecker(self.wb)
+        master = m.submodules.master = WishboneSlaveFormal(self.wb)
+        slave = m.submodules.slave = WishboneMasterFormal(self.wb)
 
         m.d.comb += [
             slave.cyc.eq(master.cyc),

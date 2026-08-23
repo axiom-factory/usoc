@@ -3,23 +3,23 @@ from amaranth.hdl import Assert, Cover
 from amaranth.lib import wiring
 from amaranth.lib.wiring import Component, In, Out, Signature
 from usys.wishbone.interface import (
-    wishbone_signature, 
-    WishboneMasterFormalChecker, 
-    WishboneSlaveFormalChecker
+    wishbone_signature,
+    WishboneMasterFormal,
+    WishboneSlaveFormal,
 )
 
 
 class WishboneArbiter(Component):
-    def __init__(self):
-        """
+    def __init__(self, is_dut=False):
+        '''
         Combinatorial 2-Port Wishbone Arbiter.
-        """
-
+        '''
+        self.is_dut = is_dut
         wb_sig = wishbone_signature()
         signature = Signature({
-            "master0":    Out(wb_sig),
-            "master1":    Out(wb_sig),
-            "slave":    In(wb_sig),
+            'master0':  In(wb_sig),
+            'master1':  In(wb_sig),
+            'slave':    Out(wb_sig),
         })
         super().__init__(signature)
 
@@ -73,17 +73,17 @@ class WishboneArbiter(Component):
                 ]
 
         if platform == "formal":
-            master0_verify = m.submodules.master0_verify = WishboneSlaveFormalChecker(master0.signature)
-            master1_verify = m.submodules.master1_verify = WishboneSlaveFormalChecker(master1.signature)
-            slave_verify = m.submodules.slave_verify = WishboneMasterFormalChecker(slave.signature)
-            wiring.connect(m, master0_verify, wiring.flipped(master0))
-            wiring.connect(m, master1_verify, wiring.flipped(master1))
-            wiring.connect(m, slave_verify, wiring.flipped(slave))
+            master0_verify = m.submodules.master0_verify = WishboneSlaveFormal(master0.signature.flip(), self.is_dut)
+            master1_verify = m.submodules.master1_verify = WishboneSlaveFormal(master1.signature.flip(), self.is_dut)
+            slave_verify = m.submodules.slave_verify = WishboneMasterFormal(slave.signature.flip(), self.is_dut)
+            wiring.connect(m, master0_verify, master0)
+            wiring.connect(m, master1_verify, master1)
+            wiring.connect(m, slave_verify, slave)
 
         return m
 
 
 if __name__ == '__main__':
     from usys.build.formal import run_formal
-    arbiter = WishboneArbiter()
+    arbiter = WishboneArbiter(is_dut=True)
     run_formal(arbiter)

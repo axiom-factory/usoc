@@ -4,13 +4,13 @@ from amaranth.lib import wiring
 from amaranth.lib.wiring import Component, In, Out, Signature
 from usys.wishbone.interface import (
     wishbone_signature, 
-    WishboneMasterFormalChecker, 
-    WishboneSlaveFormalChecker
+    WishboneMasterFormal, 
+    WishboneSlaveFormal,
 )
 
 
 class WishboneDecoder(Component):
-    def __init__(self, slave0_addr: int, slave0_size: int, slave1_addr: int, slave1_size: int):
+    def __init__(self, slave0_addr: int, slave0_size: int, slave1_addr: int, slave1_size: int, is_dut=False):
         """
         Combinatorial 2-Port Wishbone Decoder.
         
@@ -20,6 +20,7 @@ class WishboneDecoder(Component):
             slave1_addr: Starting 30-bit Word Address for Slave 1
             slave1_size: Range size in 32-bit Words
         """
+        self.is_dut = is_dut
         self.slave0_addr = slave0_addr
         self.slave0_size = slave0_size
         self.slave1_addr = slave1_addr
@@ -108,18 +109,14 @@ class WishboneDecoder(Component):
             m.d.sync += outstanding.eq(0)
             m.d.sync += active_slave.eq(0)
 
-        # ---------------------------------------------------------
-        # FORMAL CONTRACT INTEGRITY PROOFS
-        # ---------------------------------------------------------
         if platform == "formal":
-            # Instantiate our formal checkers to verify the decoder's
-            # interfaces.
-            master_verify = m.submodules.master_verify = WishboneSlaveFormalChecker(master.signature)
-            slave0_verify = m.submodules.slave0_verify = WishboneMasterFormalChecker(slave0.signature)
-            slave1_verify = m.submodules.slave1_verify = WishboneMasterFormalChecker(slave1.signature)
-            wiring.connect(m, wiring.flipped(master_verify), master)
-            wiring.connect(m, wiring.flipped(slave0_verify), slave0)
-            wiring.connect(m, wiring.flipped(slave1_verify), slave1)
+            if self.is_dut:
+                master_verify = m.submodules.master_verify = WishboneSlaveFormal(master.signature.flip(), self.is_dut)
+                slave0_verify = m.submodules.slave0_verify = WishboneMasterFormal(slave0.signature.flip(), self.is_dut)
+                slave1_verify = m.submodules.slave1_verify = WishboneMasterFormal(slave1.signature.flip(), self.is_dut)
+                wiring.connect(m, master_verify, master)
+                wiring.connect(m, slave0_verify, slave0)
+                wiring.connect(m, slave1_verify, slave1)
 
             past_cyc = Signal()
             past_bus_error = Signal()
@@ -169,7 +166,8 @@ class WishboneDecoder(Component):
 if __name__ == '__main__':
     from usys.build.formal import run_formal
     decoder = WishboneDecoder(
-        slave0_addr=0x00000000, slave0_size=4096,
-        slave1_addr=0x10000000, slave1_size=64
+        is_dut=True,
+        slave0_addr=0x00000000, slave0_size=8,
+        slave1_addr=0x10000000, slave1_size=8,
     )
     run_formal(decoder)

@@ -3,12 +3,12 @@ from amaranth.asserts import Assert, Assume, Cover
 from amaranth.lib import memory, wiring
 from amaranth.lib.wiring import Component, In, Out, Signature
 from amaranth.sim import Period, Simulator, Tick
-from usys.wishbone.interface import wishbone_signature, WishboneSlaveFormalChecker
+from usys.wishbone.interface import wishbone_signature, WishboneSlaveFormal
 import unittest
 
 
 class WishboneDualPortSram(Component):
-    def __init__(self, depth: int = 4096):
+    def __init__(self, depth: int = 4096, is_dut=False):
         '''
         Dual-Port Pipelined SRAM Block
         
@@ -16,6 +16,7 @@ class WishboneDualPortSram(Component):
             depth: Storage depth in 32-bit Words (e.g., 4096 Words = 16KB SRAM)
         '''
         self.depth = depth
+        self.is_dut = is_dut
         wb_sig = wishbone_signature()
         super().__init__(Signature({
             "port_a": In(wb_sig),
@@ -70,21 +71,11 @@ class WishboneDualPortSram(Component):
         ]
 
         if platform == "formal":
-            port_a_verify = m.submodules.port_a_verify = WishboneSlaveFormalChecker(port_a.signature)
-            port_b_verify = m.submodules.port_b_verify = WishboneSlaveFormalChecker(port_b.signature)
-            wiring.connect(m, wiring.flipped(port_a_verify), port_a)
-            wiring.connect(m, wiring.flipped(port_b_verify), port_b)
-
-            m.d.comb += Assume(port_a.addr < self.depth)
-            m.d.comb += Assume(port_b.addr < self.depth)
-
-            # Rule: Port A and B may never write to the same address at the
-            # same time.
-            both_writing = mem_w_a.en & mem_w_b.en
-            same_address = mem_w_a.addr == mem_w_b.addr
-            
-            with m.If(both_writing & same_address):
-                m.d.comb += Assume(False)
+            if self.is_dut:
+                port_a_verify = m.submodules.port_a_verify = WishboneSlaveFormal(port_a.signature.flip(), self.is_dut)
+                port_b_verify = m.submodules.port_b_verify = WishboneSlaveFormal(port_b.signature.flip(), self.is_dut)
+                wiring.connect(m, port_a_verify, port_a)
+                wiring.connect(m, port_b_verify, port_b)
 
         return m
 
@@ -135,5 +126,5 @@ class TestSramPipeline(unittest.TestCase):
 
 if __name__ == '__main__':
     from usys.build.formal import run_formal
-    sram = WishboneDualPortSram(depth=8)
+    sram = WishboneDualPortSram(depth=8, is_dut=True)
     run_formal(sram)
