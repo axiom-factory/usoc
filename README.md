@@ -1,59 +1,24 @@
-# USYS & USoC: A Wasm-Native, Zero-Arbitration Silicon Architecture
+# USoC: An IoT SoC for a WASM userspace.
 
 <!--[![Fabric Verification](https://shields.io)](#)
 [![Fmax ECP5](https://shields.io)](#)
 [![Fmax iCE40](https://shields.io)](#)-->
 
-Welcome to the future of deterministic, sandboxed edge computing. 
-
-**USYS** is a formally verified, completely arbitration-free system fabric
-written in Amaranth HDL. By treating memory and peripheral I/O as structured,
-isolated streams, it eliminates the "legacy tax" of traditional microcontrollers. 
-
-**USoC** is the flagship implementation of this fabric: an ultra-lean, secure
-RISC-V microcontroller built from the ground up to execute sandboxed WebAssembly
-applications at hardware speed.
-
----
-
-## ⚡ The Phase 1 MVP Features
-
-We are currently executing **Phase 1** of our architecture roadmap, focusing on
-a high-frequency, rock-solid hardware foundation paired with a minimal microkernel.
-
-* **Arbitration-Free Dual-Port RAM:** The CPU owns Port A of the I-RAM and D-RAM
-with zero wait-states. The streaming DMA engine owns Port B. Bus matrix contention
-is entirely eliminated.
-* **Blistering Clock Speeds:** Because of our lean, un-arbitrated routing paths,
-the fabric closes timing at a phenomenal **253 MHz on a Lattice ECP5** and
-**137 MHz on an iCE40**.
-* **Hardware-Accelerated Wasm Sandboxing (UMM):** Address translation, boundary
-checks, and memory expansion (`memory.grow`) are enforced directly in the memory
-pipeline via single-cycle bitwise masking. 
-* **Packet-Based, Stream-Driven Peripherals:** All peripheral I/O is handled via
-structured packet streams over our custom DMA (**UBUS**). We have completely
-eliminated the need for external interrupt controllers like a PLIC or APLIC.
-* **Leanest Software Driver Stack:** Because peripherals use packet-based network
-protocols, the Machine-Mode microkernel is ultra-tiny. Drivers can be written in
-safe languages (Rust, C, Zig) and run completely inside sandboxed Wasm user space.
-
----
-
-## 🏗️ Architecture Overview
-
 ![](docs/architecture.png)
 
-### The USYS vs. USoC Boundary
-1. **USYS (The System Fabric):** The core invariant infrastructure. It houses
-the dual-port memory boundaries, the **UMM** memory management hardware, the
-**UBUS** streaming matrix, and our unified data-link layer (**UMAC**).
-2. **USoC (The Complete SoC):** A concrete instance of the fabric. For the Phase
-1 MVP, it drops in a reliable, stock **RV32IM core** and wires up our first
-packet-based protocol translation cores:
-   * `blk` ──► **QSPI Flash** (Block-to-SPI command streaming)
-   * `input` ──► **UART** (Emulate a keyboard device over UART)
-
----
+- **UMM** is a memory management unit designed for a wasm user space. It handles
+wasm linear memory bounds checking and mapping wasm 64KB pages into physical
+ram. Because the table is sized for `MAX_RAM / 64KB`, context switches don't
+require TLB flushing. Its just four additional registers to swap in addition
+to CPU registers and PC.
+- **UMAC** is a unified MAC. By focusing on CRC checking and retransmissions and
+using a PHY agnostic PIPE interface, it does only what a MAC should do.
+- **UBUS** is our DMA controller. It routes packets to the peripheral FIFO
+queues based on flow credits and negotiated time slices.
+- **USYS** is a formally verified, completely arbitration-free system fabric. Since
+all peripherals use a packet based FIFO interface, drivers can be written in
+wasm user space.
+- **USoC** is the SoC, integrating an RV32IM core and targeting ice40/ecp5 fpga's.
 
 ## 🗺️ The Horizon: Designed to Scale
 
@@ -63,30 +28,18 @@ architected from day one to scale.
 ![](docs/smp-architecture.png)
 
 Our internal blueprints detail a clear evolutionary path from this single-core
-edge node to a multi-core, cache-coherent SMP cluster utilizing an advanced vector
-and bit-manipulation core matrix. Later stages of our private roadmap introduce
-unified software-defined radio physical layers (`SdrPhy`) to natively obsolete
-legacy connectivity bloat, alongside a completely sandboxed userspace storage
-engine.
-
-We are building this piece by piece, proving the math and the timing closures
-at every single step.
-
----
+edge node to a multi-core, cache-coherent SMP cluster.
 
 ## 🛰️ Follow the Journey & Progress Reports
 
 This project is being designed, formally verified, and blogged about in real
-time. If you want to see the dirty details of how we closed timing at 253 MHz,
-how the formal verification properties are structured, or how the microkernel
-context switcher is written, follow along:
+time. If you want to see the dirty details of how the SoC and microkernel are
+being built, follow along:
 
 * **Read the deep-dives on the Blog:** [https://craven.ch]
 * **Follow live progress updates:** [https://x.com/dvc94ch]
 
----
-
-## 🛠️ Getting Started (Phase 1 Prototyping)
+## 🛠️ Getting Started
 
 You'll need some dependencies like yosys, nextpnr, sby, yices and gtkwave. Once
 you have your toolchain ready you can clone and run formal verification and
