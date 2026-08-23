@@ -39,13 +39,13 @@ class WishboneDualPortSram(Component):
             port_a.stall.eq(0),
             port_a.ack.eq(port_a.cyc & ack_a),
             port_a.dat_r.eq(mem_r_a.data),
-        ]
-        m.d.sync += [
             mem_w_a.addr.eq(port_a.addr),
             mem_r_a.addr.eq(port_a.addr),
             mem_w_a.data.eq(port_a.dat_w),
             mem_w_a.en.eq(Mux(port_a.cyc & port_a.stb & port_a.we, port_a.sel, 0)),
             mem_r_a.en.eq(port_a.cyc & port_a.stb & ~port_a.we),
+        ]
+        m.d.sync += [
             ack_a.eq(port_a.cyc & x_ack_a),
             x_ack_a.eq(port_a.cyc & port_a.stb),
         ]
@@ -59,13 +59,13 @@ class WishboneDualPortSram(Component):
             port_b.stall.eq(0),
             port_b.ack.eq(port_b.cyc & ack_b),
             port_b.dat_r.eq(mem_r_b.data),
-        ]
-        m.d.sync += [
             mem_w_b.addr.eq(port_b.addr),
             mem_r_b.addr.eq(port_b.addr),
             mem_w_b.data.eq(port_b.dat_w),
             mem_w_b.en.eq(Mux(port_b.cyc & port_b.stb & port_b.we, port_b.sel, 0)),
             mem_r_b.en.eq(port_b.cyc & port_b.stb & ~port_b.we),
+        ]
+        m.d.sync += [
             ack_b.eq(port_b.cyc & x_ack_b),
             x_ack_b.eq(port_b.cyc & port_b.stb),
         ]
