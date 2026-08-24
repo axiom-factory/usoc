@@ -384,7 +384,7 @@ packages:
   size: 118849
   timestamp: 1784250406640
 - pypi: ./
-  name: usys
+  name: usoc
 - pypi: git+https://github.com/amaranth-lang/amaranth?branch=main#87d41d0dc404c03c60875ce78fb33fd4fbbc96d2
   name: amaranth
   version: 0.6.0.dev135

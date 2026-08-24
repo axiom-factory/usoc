@@ -1,18 +1,14 @@
 from amaranth import Module, Signal
-from amaranth.hdl import Assert, Cover
+from amaranth.hdl import Assert
 from amaranth.lib import wiring
 from amaranth.lib.wiring import Component, In, Out, Signature
-import math
-from usys.wishbone.interface import (
-    wishbone_signature,
-    WishboneMasterFormal,
-    WishboneSlaveFormal,
-)
+from math import log2
+from usoc.wishbone.interface import wishbone_master, WishboneFormal
 
 
 class WishboneDecoder(Component):
     def __init__(self, slave0_addr: int, slave0_size: int, slave1_addr: int, slave1_size: int, is_dut=False):
-        """
+        '''
         Combinatorial 2-Port Wishbone Decoder.
         
         Parameters:
@@ -20,19 +16,18 @@ class WishboneDecoder(Component):
             slave0_size: Range size in 32-bit Words
             slave1_addr: Starting 30-bit Word Address for Slave 1
             slave1_size: Range size in 32-bit Words
-        """
+        '''
         self.is_dut = is_dut
         self.slave0_addr = slave0_addr
         self.slave0_size = slave0_size
         self.slave1_addr = slave1_addr
         self.slave1_size = slave1_size
-
-        wb_sig = wishbone_signature()
+        wb_sig = wishbone_master()
         signature = Signature({
-            "master":    In(wb_sig),
-            "slave0":    Out(wb_sig),
-            "slave1":    Out(wb_sig),
-            "bus_error": Out(1) # Out-of-band trap pin back to the RISC-V Core
+            'master':    In(wb_sig),
+            'slave0':    Out(wb_sig),
+            'slave1':    Out(wb_sig),
+            'bus_error': Out(1) # Out-of-band trap pin back to the RISC-V Core
         })
         super().__init__(signature)
 
@@ -68,8 +63,8 @@ class WishboneDecoder(Component):
         req_issued = master.cyc & master.stb & ~master.stall
         res_rcvd   = master.cyc & master.ack
 
-        slave0_bits = int(math.log2(self.slave0_size))
-        slave1_bits = int(math.log2(self.slave1_size))
+        slave0_bits = int(log2(self.slave0_size))
+        slave1_bits = int(log2(self.slave1_size))
 
         slave0_match = (master.addr >= self.slave0_addr) & (master.addr < (self.slave0_addr + self.slave0_size))
         slave1_match = (master.addr >= self.slave1_addr) & (master.addr < (self.slave1_addr + self.slave1_size))
@@ -116,9 +111,9 @@ class WishboneDecoder(Component):
 
         if platform == "formal":
             if self.is_dut:
-                master_verify = m.submodules.master_verify = WishboneSlaveFormal(master.signature.flip(), self.is_dut)
-                slave0_verify = m.submodules.slave0_verify = WishboneMasterFormal(slave0.signature.flip(), self.is_dut)
-                slave1_verify = m.submodules.slave1_verify = WishboneMasterFormal(slave1.signature.flip(), self.is_dut)
+                master_verify = m.submodules.master_verify = WishboneFormal(master.signature.flip(), self.is_dut)
+                slave0_verify = m.submodules.slave0_verify = WishboneFormal(slave0.signature.flip(), self.is_dut)
+                slave1_verify = m.submodules.slave1_verify = WishboneFormal(slave1.signature.flip(), self.is_dut)
                 wiring.connect(m, master_verify, master)
                 wiring.connect(m, slave0_verify, slave0)
                 wiring.connect(m, slave1_verify, slave1)
@@ -166,13 +161,3 @@ class WishboneDecoder(Component):
                 ]
 
         return m
-
-
-if __name__ == '__main__':
-    from usys.build.formal import run_formal
-    decoder = WishboneDecoder(
-        is_dut=True,
-        slave0_addr=0x00000000, slave0_size=8,
-        slave1_addr=0x10000000, slave1_size=8,
-    )
-    run_formal(decoder)

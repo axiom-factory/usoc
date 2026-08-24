@@ -1,5 +1,29 @@
 # USoC: An IoT SoC for a WASM userspace.
 
+A few weeks ago, I started researching and outlining a book called *The Whole
+Machine*. The goal is to teach teenagers - specifically my son, when he gets a
+bit older - how to build a computer entirely from scratch.
+
+I don't mean "understand the concepts." True understanding only comes from
+building, which means the goal of the book is to write every single line of code
+and hardware description from scratch. No massive third-party libraries, no
+closed-source IP blocks, no hand-waving.
+
+To make it possible for a teenager to actually build a complete machine from the
+ground up, you have to radically simplify everything. You have to aggressively
+slice away the historical cruft and unnecessary complexity that plages modern
+commercial architectures. But a funny thing happened during those first two
+weeks of conceptual design: I looked at the blueprint and realized it wasn't
+just an educational toy. By forcing myself to strip the architecture down to a
+level where every single line could be built from scratch, I had accidentally
+designed what I believe is the future of embedded computing.
+
+I immediately shifted gears. Under the moniker AxiomFactory, I am turning that
+blueprint into a next-generation, WebAssembly-based IoT platform.
+
+The current architecture is split into clean, hardware boundaries designed to
+run these sandboxed workloads at hardware speed:
+
 ![](docs/architecture.png)
 
 - **UMM (Userspace Memory Management):** Enforces WebAssembly linear memory bounds
@@ -47,20 +71,7 @@ git clone https://github.com/axiom-factory/usys
 cd usys
 pixi install
 pixi shell
-```
-
-Every component is in its own file and can be formally verified by running
-it in python.
-
-```
-python usys/wishbone/fabric.py
-```
-
-Timing requires a wrapper to ensure all the inputs and outputs are driven
-and yosys doesn't just optimize the design away.
-
-```
-python usys/wishbone/fabric_timing.py
+pixi run test
 ```
 
 ## Licensing & Third Party Contributions

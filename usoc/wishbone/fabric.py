@@ -1,13 +1,12 @@
-from amaranth import Module, Signal, Mux
-from amaranth.hdl import Assert
+from amaranth import Module, Signal
 from amaranth.lib import wiring
-from amaranth.lib.wiring import In, Out
-from usys.wishbone.interface import wishbone_signature, WishboneMasterFormal, WishboneSlaveFormal
-from usys.wishbone.decoder import WishboneDecoder
-from usys.wishbone.sram import WishboneDualPortSram
+from amaranth.lib.wiring import Component, In, Out
+from usoc.wishbone.decoder import WishboneDecoder
+from usoc.wishbone.interface import wishbone_master, WishboneFormal
+from usoc.wishbone.sram import WishboneDualPortSram
 
 
-class UsysFabric(wiring.Component):
+class UsysFabric(Component):
     def __init__(self, depth_i_sram: int = 4096, depth_d_sram: int = 4096, depth_mmio: int = 64, is_dut=False):
         '''
         USYS Routing Fabric
@@ -21,13 +20,13 @@ class UsysFabric(wiring.Component):
         self.depth_i = depth_i_sram
         self.depth_d = depth_d_sram
         self.depth_mmio = depth_mmio
-        wb_sig = wishbone_signature()
+        wb_sig = wishbone_master()
         super().__init__(wiring.Signature({
-            "cpu_ibus":      In(wb_sig),
-            "cpu_dbus":      In(wb_sig),
-            "ubus_master":   In(wb_sig),
-            "ubus_slave":    Out(wb_sig),
-            "cpu_bus_error": Out(1)
+            'cpu_ibus':      In(wb_sig),
+            'cpu_dbus':      In(wb_sig),
+            'ubus_master':   In(wb_sig),
+            'ubus_slave':    Out(wb_sig),
+            'cpu_bus_error': Out(1)
         }))
 
     def elaborate(self, platform):
@@ -57,21 +56,15 @@ class UsysFabric(wiring.Component):
         wiring.connect(m, d_sram.port_b, ubus_decoder.slave1)
         m.d.comb += self.cpu_bus_error.eq(dbus_decoder.bus_error)
 
-        if platform == "formal":
+        if platform == 'formal':
             if self.is_dut:
-                ibus_verify = m.submodules.ibus_verify = WishboneSlaveFormal(self.cpu_ibus.signature.flip(), self.is_dut)
-                dbus_verify = m.submodules.dbus_verify = WishboneSlaveFormal(self.cpu_dbus.signature.flip(), self.is_dut)
-                ubus_m_verify = m.submodules.ubus_m_verify = WishboneSlaveFormal(self.ubus_master.signature.flip(), self.is_dut)
-                ubus_s_verify = m.submodules.ubus_s_verify = WishboneMasterFormal(self.ubus_slave.signature.flip(), self.is_dut)
+                ibus_verify = m.submodules.ibus_verify = WishboneFormal(self.cpu_ibus.signature.flip(), self.is_dut)
+                dbus_verify = m.submodules.dbus_verify = WishboneFormal(self.cpu_dbus.signature.flip(), self.is_dut)
+                ubus_m_verify = m.submodules.ubus_m_verify = WishboneFormal(self.ubus_master.signature.flip(), self.is_dut)
+                ubus_s_verify = m.submodules.ubus_s_verify = WishboneFormal(self.ubus_slave.signature.flip(), self.is_dut)
                 wiring.connect(m, ibus_verify, self.cpu_ibus)
                 wiring.connect(m, dbus_verify, self.cpu_dbus)
                 wiring.connect(m, ubus_m_verify, self.ubus_master)
                 wiring.connect(m, ubus_s_verify, self.ubus_slave)
 
         return m
-
-
-if __name__ == '__main__':
-    from usys.build.formal import run_formal
-    usys = UsysFabric(depth_i_sram=8, depth_d_sram=8, depth_mmio=8, is_dut=True)
-    run_formal(usys)

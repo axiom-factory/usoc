@@ -1,7 +1,9 @@
 from amaranth import Module, Signal
 from amaranth.lib.wiring import Component, Out, Signature
-from usys.build.nextpnr import build_ecp5, build_ice40
-from usys.wishbone.fabric import UsysFabric
+from unittest import TestCase
+from usoc.build.formal import run_formal
+from usoc.build.nextpnr import build_ecp5, build_ice40
+from usoc.wishbone.fabric import UsysFabric
 
 
 class UsysFabricTimingWrapper(Component):
@@ -79,12 +81,15 @@ class UsysFabricTimingWrapper(Component):
         return m
 
 
-if __name__ == "__main__":
-    from usys.build.nextpnr import build_ecp5, build_ice40
-    fabric = UsysFabricTimingWrapper()
+class TestUsysFabric(TestCase):
+    def test_formal(self):
+        usys = UsysFabric(depth_i_sram=8, depth_d_sram=8, depth_mmio=8, is_dut=True)
+        run_formal(usys)
 
-    # 1. Profile on the large high-performance ECP5-5G chip
-    #build_ecp5(fabric)
-    
-    # 2. Profile on the tiny cheap ultra-low-resource iCE40 chip
-    build_ice40(fabric)
+    def test_timing_ice40(self):
+        fabric = UsysFabricTimingWrapper()
+        build_ice40(fabric, 93)
+
+    def test_timing_ecp5(self):
+        fabric = UsysFabricTimingWrapper()
+        build_ecp5(fabric, 137)
