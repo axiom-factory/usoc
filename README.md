@@ -57,7 +57,7 @@ This project is being designed, formally verified, and blogged about in real
 time. If you want to see the dirty details of how the SoC and microkernel are
 being built, follow along:
 
-* **Read the deep-dives on the Blog:** [https://craven.ch]
+* **Read the deep-dives on the Blog:** [https://axiomfactory.co]
 * **Follow live progress updates:** [https://x.com/dvc94ch]
 
 ## 🛠️ Getting Started
