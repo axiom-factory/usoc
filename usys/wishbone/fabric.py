@@ -21,9 +21,7 @@ class UsysFabric(wiring.Component):
         self.depth_i = depth_i_sram
         self.depth_d = depth_d_sram
         self.depth_mmio = depth_mmio
-
         wb_sig = wishbone_signature()
-
         super().__init__(wiring.Signature({
             "cpu_ibus":      In(wb_sig),
             "cpu_dbus":      In(wb_sig),

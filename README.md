@@ -1,34 +1,31 @@
 # USoC: An IoT SoC for a WASM userspace.
 
-<!--[![Fabric Verification](https://shields.io)](#)
-[![Fmax ECP5](https://shields.io)](#)
-[![Fmax iCE40](https://shields.io)](#)-->
-
 ![](docs/architecture.png)
 
-- **UMM** is a memory management unit designed for a wasm user space. It handles
-wasm linear memory bounds checking and mapping wasm 64KB pages into physical
-ram. Because the table is sized for `MAX_RAM / 64KB`, context switches don't
-require TLB flushing. Its just four additional registers to swap in addition
-to CPU registers and PC.
-- **UMAC** is a unified MAC. By focusing on CRC checking and retransmissions and
-using a PHY agnostic PIPE interface, it does only what a MAC should do.
-- **UBUS** is our DMA controller. It routes packets to the peripheral FIFO
-queues based on flow credits and negotiated time slices.
-- **USYS** is a formally verified, completely arbitration-free system fabric. Since
-all peripherals use a packet based FIFO interface, drivers can be written in
-wasm user space.
-- **USoC** is the SoC, integrating an RV32IM core and targeting ice40/ecp5 fpga's.
+- **UMM (Userspace Memory Management):** Enforces WebAssembly linear memory bounds
+checking and maps 64KB WASM pages directly into physical RAM. Because the translation
+table is sized statically for `MAX_RAM / 64KB`, context switches require zero TLB
+flushing - swapping tasks requires updating just four control registers alongside
+the CPU registers and PC.
+- **UMAC (Unified MAC):** A streamlined media access controller that does only
+what a MAC should do. By stripping out legacy protocol bloat, it focuses strictly
+on CRC checking and hardware retransmissions over a PHY-agnostic PIPE interface.
+- **UBUS (Streaming DMA Matrix):** Our packet-driven DMA controller. It eliminates
+traditional bus contention by routing data packets directly to peripheral FIFO
+queues based on explicit flow credits and negotiated time slices.
+- **USYS (System Fabric):** A formally verified, arbitration-free system interconnect.
+Because every peripheral communicates over a standardized packet based FIFO interface,
+individual hardware drivers are pushed entirely out of the kernel and run securely
+inside sandboxed WASM user space.
+- **USoC (The Complete SoC):** The concrete integration of this fabric, dropping
+in a stock RV32IM core and targeting low-cost, accessible iCE40 and ECP5 FPGAs.
 
 ## 🗺️ The Horizon: Designed to Scale
 
-While we are laser-focused on finalizing the Phase 1 MVP, the USYS fabric was
-architected from day one to scale.
+While the initial focus is finalizing this single-core implementation, the
+underlying USYS fabric was architected from day one to scale.
 
 ![](docs/smp-architecture.png)
-
-Our internal blueprints detail a clear evolutionary path from this single-core
-edge node to a multi-core, cache-coherent SMP cluster.
 
 ## 🛰️ Follow the Journey & Progress Reports
 
